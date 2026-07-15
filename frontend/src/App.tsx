@@ -445,6 +445,8 @@ export default function App() {
                             station={st}
                             isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'IOCL')}
                             onToggleFavorite={handleToggleFavorite}
+                            userLatitude={latitude}
+                            userLongitude={longitude}
                           />
                         ))}
                       </div>
@@ -477,6 +479,8 @@ export default function App() {
                             station={st}
                             isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'HPCL')}
                             onToggleFavorite={handleToggleFavorite}
+                            userLatitude={latitude}
+                            userLongitude={longitude}
                           />
                         ))}
                       </div>
@@ -509,6 +513,8 @@ export default function App() {
                             station={st}
                             isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'BPCL')}
                             onToggleFavorite={handleToggleFavorite}
+                            userLatitude={latitude}
+                            userLongitude={longitude}
                           />
                         ))}
                       </div>
@@ -541,6 +547,8 @@ export default function App() {
                             station={st}
                             isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'Shell')}
                             onToggleFavorite={handleToggleFavorite}
+                            userLatitude={latitude}
+                            userLongitude={longitude}
                           />
                         ))}
                       </div>

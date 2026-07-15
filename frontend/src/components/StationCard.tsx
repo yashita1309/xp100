@@ -16,16 +16,28 @@ interface StationCardProps {
   station: UnifiedStation;
   onToggleFavorite: (id: string, brand: string) => void;
   isFavorite: boolean;
+  userLatitude: number | null;
+  userLongitude: number | null;
 }
 
 export const StationCard: React.FC<StationCardProps> = ({
   station,
   onToggleFavorite,
   isFavorite,
+  userLatitude,
+  userLongitude,
 }) => {
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [copiedCoords, setCopiedCoords] = useState(false);
   const [shared, setShared] = useState(false);
+
+  const getGoogleMapsUrl = () => {
+    const dest = `${station.latitude},${station.longitude}`;
+    if (userLatitude !== null && userLongitude !== null) {
+      return `https://www.google.com/maps/dir/?api=1&origin=${userLatitude},${userLongitude}&destination=${dest}`;
+    }
+    return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+  };
 
   // Clipboard copy handlers
   const handleCopyAddress = () => {
@@ -44,14 +56,15 @@ export const StationCard: React.FC<StationCardProps> = ({
 
   const handleShare = () => {
     const shareText = `Check out ${station.stationName} in ${station.city} serving premium petrol. Coordinates: ${station.latitude}, ${station.longitude}`;
+    const mapsUrl = getGoogleMapsUrl();
     if (navigator.share) {
       navigator.share({
         title: station.stationName,
         text: shareText,
-        url: station.googleMapsUrl || window.location.href,
+        url: mapsUrl,
       }).catch((e) => console.log('Share aborted', e));
     } else {
-      navigator.clipboard.writeText(shareText + ' ' + (station.googleMapsUrl || ''));
+      navigator.clipboard.writeText(shareText + ' ' + mapsUrl);
       setShared(true);
       setTimeout(() => setShared(false), 2000);
     }
@@ -266,7 +279,7 @@ export const StationCard: React.FC<StationCardProps> = ({
 
         {/* Main Map Navigation Link */}
         <a
-          href={station.googleMapsUrl}
+          href={getGoogleMapsUrl()}
           target="_blank"
           rel="noopener noreferrer"
           className={`flex items-center justify-center gap-2 w-full py-3 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all active:scale-98 bg-gradient-to-r ${brandStyle.gradient} hover:shadow-${station.brand === 'Shell' ? 'red' : 'blue'}-500/25`}

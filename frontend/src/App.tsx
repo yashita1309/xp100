@@ -74,9 +74,8 @@ export default function App() {
 
   // Main data fetcher
   const loadData = useCallback(async () => {
-    // If coords are not loaded yet, wait
-    const targetLat = latitude ?? 28.6139; // fallback to Delhi if location is denied/prompt
-    const targetLng = longitude ?? 77.2090;
+    const targetLat = latitude;
+    const targetLng = longitude;
 
     setIsLoading(true);
     setIsError(false);
@@ -85,7 +84,7 @@ export default function App() {
       // 1. Run health check first
       await PetrolFinderAPI.checkHealth();
 
-      // 2. Fetch full lists from endpoints (with search filter)
+      // 2. Fetch full lists from endpoints (with search filter applied on backend)
       const [allIocl, allHpcl, allBpcl, allShell] = await Promise.all([
         PetrolFinderAPI.getIOCLStations({ search: debouncedSearch }),
         PetrolFinderAPI.getHPCLStations({ search: debouncedSearch }),
@@ -93,124 +92,140 @@ export default function App() {
         PetrolFinderAPI.getShellStations({ search: debouncedSearch }),
       ]);
 
-      // 3. Fetch nearby lists containing computed distances
-      const [nearbyIocl, nearbyHpcl, nearbyBpcl, nearbyShell] = await Promise.all([
-        PetrolFinderAPI.getIOCLNearbyStations({ lat: targetLat, lng: targetLng, radius }),
-        PetrolFinderAPI.getHPCLNearbyStations({ lat: targetLat, lng: targetLng, radius }),
-        PetrolFinderAPI.getBPCLNearbyStations({ lat: targetLat, lng: targetLng, radius }),
-        PetrolFinderAPI.getShellNearbyStations({ lat: targetLat, lng: targetLng, radius }),
-      ]);
-
-      // 4. Consolidate and merge datasets
+      // 3. Consolidate, merge datasets, and calculate distance client-side
       const consolidated: UnifiedStation[] = [];
 
+      // Helper to calculate Haversine distance client-side
+      const getDistance = (lat: number, lng: number) => {
+        if (targetLat === null || targetLng === null) return undefined;
+        const R = 6371; // Radius of the earth in km
+        const dLat = ((lat - targetLat) * Math.PI) / 180;
+        const dLon = ((lng - targetLng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((targetLat * Math.PI) / 180) *
+            Math.cos((lat * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
       // A. IOCL Merge
-      for (const nearby of nearbyIocl) {
-        const full = allIocl.find((s) => s.roCode === nearby.roCode);
-        if (full) {
+      for (const item of allIocl) {
+        const dist = getDistance(item.latitude, item.longitude);
+        // If there's an active search query, we display all global results.
+        // Otherwise, if coordinates are loaded, we filter within the user's selected radius.
+        if (debouncedSearch || dist === undefined || dist <= radius) {
           consolidated.push({
             brand: 'IOCL',
-            fuelType: full.fuelType || 'XP95/XP100',
-            stationId: full.roCode,
-            stationName: full.stationName,
-            address: full.address || 'Address Not Available',
-            city: full.city,
-            state: full.state || 'Unknown',
-            phone: full.phone,
-            latitude: full.latitude,
-            longitude: full.longitude,
-            distance: nearby.distance,
-            googleMapsUrl: full.googleMapsUrl,
-            openingHours: full.openingHours,
-            petrolPrice: full.petrolPrice,
-            dieselPrice: full.dieselPrice,
-            xp95Price: full.xp95Price,
-            xp100Price: full.xp100Price,
-            premiumFuelPrice: full.xp100Price && full.xp100Price > 0 ? full.xp100Price : full.xp95Price,
-            stateOffice: full.stateOffice,
-            divisionalOffice: full.divisionalOffice,
-            salesArea: full.salesArea,
-            stationUrl: full.stationUrl,
+            fuelType: item.fuelType || 'XP95/XP100',
+            stationId: item.roCode,
+            stationName: item.stationName,
+            address: item.address || 'Address Not Available',
+            city: item.city,
+            state: item.state || 'Unknown',
+            phone: item.phone,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            distance: dist,
+            googleMapsUrl: item.googleMapsUrl,
+            openingHours: item.openingHours,
+            petrolPrice: item.petrolPrice,
+            dieselPrice: item.dieselPrice,
+            xp95Price: item.xp95Price,
+            xp100Price: item.xp100Price,
+            premiumFuelPrice: item.xp100Price && item.xp100Price > 0 ? item.xp100Price : item.xp95Price,
+            stateOffice: item.stateOffice,
+            divisionalOffice: item.divisionalOffice,
+            salesArea: item.salesArea,
+            stationUrl: item.stationUrl,
           });
         }
       }
 
       // B. HPCL Merge
-      for (const nearby of nearbyHpcl) {
-        const full = allHpcl.find((s) => s.roCode === nearby.roCode || s.stationName === nearby.stationName);
-        consolidated.push({
-          brand: 'HPCL',
-          fuelType: 'Power95',
-          stationId: full?.roCode || nearby.roCode || 'HPCL-' + nearby.stationName,
-          stationName: nearby.stationName,
-          address: full?.address || 'Address Not Available',
-          city: nearby.city,
-          state: nearby.state || 'Unknown',
-          phone: full?.phone || null,
-          latitude: nearby.latitude,
-          longitude: nearby.longitude,
-          distance: nearby.distance,
-          googleMapsUrl: nearby.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${nearby.latitude},${nearby.longitude}`,
-          openingHours: full?.openingHours || 'Open 06:00 AM - 11:00 PM',
-          petrolPrice: nearby.petrolPrice,
-          dieselPrice: nearby.dieselPrice,
-          power95Price: nearby.power95Price,
-          turboJetPrice: nearby.turboJetPrice,
-          premiumFuelPrice: nearby.power95Price,
-          stateOffice: full?.stateOffice,
-          divisionalOffice: full?.divisionalOffice,
-          salesArea: full?.salesArea,
-          stationUrl: nearby.stationUrl,
-        });
+      for (const item of allHpcl) {
+        const dist = getDistance(item.latitude, item.longitude);
+        if (debouncedSearch || dist === undefined || dist <= radius) {
+          consolidated.push({
+            brand: 'HPCL',
+            fuelType: 'Power95',
+            stationId: item.roCode || 'HPCL-' + item.stationName,
+            stationName: item.stationName,
+            address: item.address || 'Address Not Available',
+            city: item.city,
+            state: item.state || 'Unknown',
+            phone: item.phone || null,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            distance: dist,
+            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+            openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
+            petrolPrice: item.petrolPrice,
+            dieselPrice: item.dieselPrice,
+            power95Price: item.power95Price,
+            turboJetPrice: item.turboJetPrice,
+            premiumFuelPrice: item.power95Price,
+            stateOffice: item.stateOffice,
+            divisionalOffice: item.divisionalOffice,
+            salesArea: item.salesArea,
+            stationUrl: item.stationUrl,
+          });
+        }
       }
 
       // C. BPCL Merge
-      for (const nearby of nearbyBpcl) {
-        const full = allBpcl.find((s) => s.roId === nearby.roId);
-        consolidated.push({
-          brand: 'BPCL',
-          fuelType: 'Speed97',
-          stationId: nearby.roId,
-          stationName: nearby.stationName,
-          address: full?.address || 'Address Not Available',
-          city: nearby.city,
-          state: nearby.state || 'Unknown',
-          phone: full?.phone || null,
-          latitude: nearby.latitude,
-          longitude: nearby.longitude,
-          distance: nearby.distance,
-          googleMapsUrl: nearby.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${nearby.latitude},${nearby.longitude}`,
-          openingHours: full?.openingHours || null,
-          petrolPrice: nearby.petrolPrice,
-          dieselPrice: nearby.dieselPrice,
-          speedPrice: nearby.speedPrice,
-          premiumFuelPrice: nearby.speedPrice,
-        });
+      for (const item of allBpcl) {
+        const dist = getDistance(item.latitude, item.longitude);
+        if (debouncedSearch || dist === undefined || dist <= radius) {
+          consolidated.push({
+            brand: 'BPCL',
+            fuelType: 'Speed97',
+            stationId: item.roId,
+            stationName: item.stationName,
+            address: item.address || 'Address Not Available',
+            city: item.city,
+            state: item.state || 'Unknown',
+            phone: item.phone || null,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            distance: dist,
+            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+            openingHours: item.openingHours || null,
+            petrolPrice: item.petrolPrice,
+            dieselPrice: item.dieselPrice,
+            speedPrice: item.speedPrice,
+            premiumFuelPrice: item.speedPrice,
+          });
+        }
       }
 
       // D. Shell Merge
-      for (const nearby of nearbyShell) {
-        const full = allShell.find((s) => s.stationId === nearby.roCode);
-        consolidated.push({
-          brand: 'Shell',
-          fuelType: 'V-Power',
-          stationId: nearby.roCode || 'Shell-' + nearby.stationName,
-          stationName: nearby.stationName,
-          address: full?.address || 'Address Not Available',
-          city: nearby.city,
-          state: nearby.state || 'Unknown',
-          phone: full?.phone || null,
-          latitude: nearby.latitude,
-          longitude: nearby.longitude,
-          distance: nearby.distance,
-          googleMapsUrl: nearby.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${nearby.latitude},${nearby.longitude}`,
-          openingHours: full?.openingHours || 'Open 06:00 AM - 11:00 PM',
-          petrolPrice: full?.petrolPrice || null,
-          dieselPrice: full?.dieselPrice || null,
-          premiumFuelPrice: full?.xp95Price || null, // Shell uses cached premium petrol price
-          fuels: full?.fuels,
-          amenities: full?.amenities,
-        });
+      for (const item of allShell) {
+        const dist = getDistance(item.latitude, item.longitude);
+        if (debouncedSearch || dist === undefined || dist <= radius) {
+          consolidated.push({
+            brand: 'Shell',
+            fuelType: 'V-Power',
+            stationId: item.stationId || 'Shell-' + item.stationName,
+            stationName: item.stationName,
+            address: item.address || 'Address Not Available',
+            city: item.city,
+            state: item.state || 'Unknown',
+            phone: item.phone || null,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            distance: dist,
+            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+            openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
+            petrolPrice: item.petrolPrice || null,
+            dieselPrice: item.dieselPrice || null,
+            premiumFuelPrice: item.xp95Price || null, // Shell uses cached premium petrol price
+            fuels: item.fuels,
+            amenities: item.amenities,
+          });
+        }
       }
 
       setStations(consolidated);

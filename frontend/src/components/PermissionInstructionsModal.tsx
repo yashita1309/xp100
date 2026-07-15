@@ -10,6 +10,15 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
   isOpen,
   onClose,
 }) => {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   if (!isOpen) return null;
 
   const handleRefresh = () => {
@@ -38,7 +47,7 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
                 Location Access Blocked
               </h3>
               <p className="text-[11px] opacity-90 font-medium">
-                Here is how to restore precision search
+                {isMobile ? "How to enable location on your phone" : "Here is how to restore precision search"}
               </p>
             </div>
           </div>
@@ -54,57 +63,97 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
         <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-5 text-slate-600 dark:text-slate-300 text-xs">
           
           <div className="p-3 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200/40 dark:border-rose-900/30 font-medium">
-            🔒 <span className="font-bold">Browser Security Rule:</span> Websites are blocked from programmatically prompting you for location once it has been set to "Block". You must manually unblock it using one of the quick steps below.
+            🔒 <span className="font-bold">Browser Security Rule:</span> Websites cannot request location permission again after it has been set to "Block". You must manually toggle it allowed.
           </div>
 
-          <div className="flex flex-col gap-4">
-            
-            {/* Method A (Primary & Easiest in Chrome) */}
-            <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
-                A
+          {isMobile ? (
+            /* MOBILE SPECIFIC INSTRUCTIONS */
+            <div className="flex flex-col gap-4">
+              
+              {/* Mobile Chrome */}
+              <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
+                  A
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 dark:text-slate-100 mb-1">
+                    Google Chrome (Android / iOS)
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1.5 leading-relaxed font-medium">
+                    <li>Tap the **Tune / Sliders 🎛️** icon on the top-left of the URL bar (left of the website name).</li>
+                    <li>Select <span className="font-bold text-slate-800 dark:text-slate-200">Permissions</span>.</li>
+                    <li>Toggle the <span className="font-bold text-rose-500">Location</span> switch to <span className="font-bold text-emerald-500">Allowed (ON)</span>.</li>
+                  </ol>
+                </div>
               </div>
-              <div>
-                <h4 className="font-extrabold text-slate-800 dark:text-slate-100 mb-1 flex items-center gap-1.5">
-                  Method 1: Right-Side URL Icon (Recommended)
-                </h4>
-                <p className="leading-relaxed">
-                  In Chrome, look at the **far-right** of your top web address bar (just to the left of the Bookmark Star ⭐). 
-                </p>
-                <p className="leading-relaxed mt-1 font-semibold text-slate-800 dark:text-slate-200">
-                  Click the <span className="text-rose-500 font-bold">Crossed-out Location Pin ∅</span> icon, select <span className="text-emerald-500 font-bold">"Always allow..."</span>, and click <span className="font-bold">Done</span>.
-                </p>
+
+              {/* Mobile Safari */}
+              <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start animate-in slide-in-from-bottom-2 duration-300">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs">
+                  B
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 dark:text-slate-100 mb-1">
+                    Safari (iPhone / iOS)
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1.5 leading-relaxed font-medium">
+                    <li>Tap the **aA** settings icon on the left of your address bar.</li>
+                    <li>Select **Website Settings**.</li>
+                    <li>Change **Location** permission from Ask/Deny to **Allow**.</li>
+                  </ol>
+                </div>
               </div>
             </div>
-
-            {/* Method B (Alternative) */}
-            <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs">
-                B
+          ) : (
+            /* DESKTOP SPECIFIC INSTRUCTIONS */
+            <div className="flex flex-col gap-4">
+              
+              {/* Method A (Primary & Easiest in Chrome) */}
+              <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
+                  A
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 dark:text-slate-100 mb-1 flex items-center gap-1.5">
+                    Method 1: Right-Side URL Icon (Recommended)
+                  </h4>
+                  <p className="leading-relaxed">
+                    In Chrome, look at the **far-right** of your top web address bar (just to the left of the Bookmark Star ⭐). 
+                  </p>
+                  <p className="leading-relaxed mt-1 font-semibold text-slate-800 dark:text-slate-200">
+                    Click the <span className="text-rose-500 font-bold">Crossed-out Location Pin ∅</span> icon, select <span className="text-emerald-500 font-bold">"Always allow..."</span>, and click <span className="font-bold">Done</span>.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1">
-                  Method 2: Left-Side Sliders Icon
-                </h4>
-                <p className="leading-relaxed">
-                  On the **far-left** of the web address bar (next to the website name), click the **Tune / Sliders** icon 🎛️ or lock icon 🔒.
-                </p>
-                <p className="leading-relaxed mt-1">
-                  Find **Location** in the popup menu and toggle the switch to **Allow**.
-                </p>
+
+              {/* Method B (Alternative) */}
+              <div className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl flex gap-3 items-start">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs">
+                  B
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1">
+                    Method 2: Left-Side Sliders Icon
+                  </h4>
+                  <p className="leading-relaxed">
+                    On the **far-left** of the web address bar (next to the website name), click the **Tune / Sliders** icon 🎛️ or lock icon 🔒.
+                  </p>
+                  <p className="leading-relaxed mt-1">
+                    Find **Location** in the popup menu and toggle the switch to **Allow**.
+                  </p>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Step 3 */}
-            <div className="flex gap-3 items-center px-2 mt-1">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center font-bold text-xs">
-                ✓
-              </div>
-              <p className="font-bold text-slate-800 dark:text-slate-100">
-                Click "I Enabled It, Refresh Now" below to load coordinates.
-              </p>
+          {/* Action Reminder */}
+          <div className="flex gap-3 items-center px-2 mt-1">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center font-bold text-xs">
+              ✓
             </div>
-
+            <p className="font-bold text-slate-800 dark:text-slate-100">
+              Click "I Enabled It, Refresh Now" below to load coordinates.
+            </p>
           </div>
 
         </div>

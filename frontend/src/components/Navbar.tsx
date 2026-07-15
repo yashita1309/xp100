@@ -9,6 +9,7 @@ interface NavbarProps {
   city: string | null;
   permissionStatus: string;
   onRefreshLocation: () => void;
+  isLoading?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   city,
   permissionStatus,
   onRefreshLocation,
+  isLoading = false,
 }) => {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-6 py-4 flex flex-wrap items-center justify-between gap-4">
@@ -42,7 +44,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
           <MapPin size={16} className="text-rose-500 animate-bounce" />
           <span className="font-semibold text-slate-700 dark:text-slate-200">
-            {city ? `${city}` : latitude && longitude ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` : 'No Location Detected'}
+            {isLoading 
+              ? 'Locating...' 
+              : city 
+                ? city 
+                : latitude && longitude 
+                  ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` 
+                  : 'No Location Detected'}
           </span>
           <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${
             permissionStatus === 'granted'

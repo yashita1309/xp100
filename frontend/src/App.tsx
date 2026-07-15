@@ -358,6 +358,7 @@ export default function App() {
         city={city}
         permissionStatus={permissionStatus}
         onRefreshLocation={handleRetryLocation}
+        isLoading={isLoading}
       />
 
       {/* Main Body */}
@@ -374,7 +375,7 @@ export default function App() {
               latitude={latitude}
               longitude={longitude}
               city={city}
-              totalStations={stations.length}
+              totalStations={filteredAndSortedStations.length}
               lastUpdated={lastUpdated || 'Never'}
             />
 
@@ -385,10 +386,11 @@ export default function App() {
               permissionStatus={permissionStatus}
               onSelectCity={handleSelectCity}
               onRetry={handleRetryLocation}
+              isLoading={isLoading}
             />
 
             {/* Analytics summary rows */}
-            <PriceSummary stations={stations} />
+            <PriceSummary stations={filteredAndSortedStations} />
 
             {/* Sticky Filtering controls */}
             <FilterBar

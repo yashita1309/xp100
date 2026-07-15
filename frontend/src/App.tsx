@@ -74,16 +74,21 @@ export default function App() {
     });
   };
 
-  // Debounced search term
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [search]);
+  // Dynamic rendering limits to prevent DOM lag on mobile/desktop (Instant UX)
+  const [ioclLimit, setIoclLimit] = useState(20);
+  const [hpclLimit, setHpclLimit] = useState(20);
+  const [bpclLimit, setBpclLimit] = useState(20);
+  const [shellLimit, setShellLimit] = useState(20);
 
-  // Main data fetcher
+  // Reset rendering chunk sizes when filters or query parameters change
+  useEffect(() => {
+    setIoclLimit(20);
+    setHpclLimit(20);
+    setBpclLimit(20);
+    setShellLimit(20);
+  }, [search, radius, selectedBrand]);
+
+  // Main data fetcher (downloads entire database once, all filtering and searching happens client-side)
   const loadData = useCallback(async () => {
     const targetLat = latitude;
     const targetLng = longitude;
@@ -95,12 +100,12 @@ export default function App() {
       // 1. Run health check first
       await PetrolFinderAPI.checkHealth();
 
-      // 2. Fetch full lists from endpoints (with search filter applied on backend)
+      // 2. Fetch full lists from endpoints in parallel (zero parameters to pull complete lists)
       const [allIocl, allHpcl, allBpcl, allShell] = await Promise.all([
-        PetrolFinderAPI.getIOCLStations({ search: debouncedSearch }),
-        PetrolFinderAPI.getHPCLStations({ search: debouncedSearch }),
-        PetrolFinderAPI.getBPCLStations({ search: debouncedSearch }),
-        PetrolFinderAPI.getShellStations({ search: debouncedSearch }),
+        PetrolFinderAPI.getIOCLStations({}),
+        PetrolFinderAPI.getHPCLStations({}),
+        PetrolFinderAPI.getBPCLStations({}),
+        PetrolFinderAPI.getShellStations({}),
       ]);
 
       // 3. Consolidate, merge datasets, and calculate distance client-side
@@ -125,118 +130,108 @@ export default function App() {
       // A. IOCL Merge
       for (const item of allIocl) {
         const dist = getDistance(item.latitude, item.longitude);
-        // If there's an active search query, we display all global results.
-        // Otherwise, if coordinates are loaded, we filter within the user's selected radius.
-        if (debouncedSearch || dist === undefined || dist <= radius) {
-          consolidated.push({
-            brand: 'IOCL',
-            fuelType: item.fuelType || 'XP95/XP100',
-            stationId: item.roCode,
-            stationName: item.stationName,
-            address: item.address || 'Address Not Available',
-            city: item.city,
-            state: item.state || 'Unknown',
-            phone: item.phone,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            distance: dist,
-            googleMapsUrl: item.googleMapsUrl,
-            openingHours: item.openingHours,
-            petrolPrice: item.petrolPrice,
-            dieselPrice: item.dieselPrice,
-            xp95Price: item.xp95Price,
-            xp100Price: item.xp100Price,
-            premiumFuelPrice: item.xp100Price && item.xp100Price > 0 ? item.xp100Price : item.xp95Price,
-            stateOffice: item.stateOffice,
-            divisionalOffice: item.divisionalOffice,
-            salesArea: item.salesArea,
-            stationUrl: item.stationUrl,
-          });
-        }
+        consolidated.push({
+          brand: 'IOCL',
+          fuelType: item.fuelType || 'XP95/XP100',
+          stationId: item.roCode,
+          stationName: item.stationName,
+          address: item.address || 'Address Not Available',
+          city: item.city,
+          state: item.state || 'Unknown',
+          phone: item.phone,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          distance: dist,
+          googleMapsUrl: item.googleMapsUrl,
+          openingHours: item.openingHours,
+          petrolPrice: item.petrolPrice,
+          dieselPrice: item.dieselPrice,
+          xp95Price: item.xp95Price,
+          xp100Price: item.xp100Price,
+          premiumFuelPrice: item.xp100Price && item.xp100Price > 0 ? item.xp100Price : item.xp95Price,
+          stateOffice: item.stateOffice,
+          divisionalOffice: item.divisionalOffice,
+          salesArea: item.salesArea,
+          stationUrl: item.stationUrl,
+        });
       }
 
       // B. HPCL Merge
       for (const item of allHpcl) {
         const dist = getDistance(item.latitude, item.longitude);
-        if (debouncedSearch || dist === undefined || dist <= radius) {
-          consolidated.push({
-            brand: 'HPCL',
-            fuelType: 'Power95',
-            stationId: item.roCode || 'HPCL-' + item.stationName,
-            stationName: item.stationName,
-            address: item.address || 'Address Not Available',
-            city: item.city,
-            state: item.state || 'Unknown',
-            phone: item.phone || null,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            distance: dist,
-            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
-            openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
-            petrolPrice: item.petrolPrice,
-            dieselPrice: item.dieselPrice,
-            power95Price: item.power95Price,
-            turboJetPrice: item.turboJetPrice,
-            premiumFuelPrice: item.power95Price,
-            stateOffice: item.stateOffice,
-            divisionalOffice: item.divisionalOffice,
-            salesArea: item.salesArea,
-            stationUrl: item.stationUrl,
-          });
-        }
+        consolidated.push({
+          brand: 'HPCL',
+          fuelType: 'Power95',
+          stationId: item.roCode || 'HPCL-' + item.stationName,
+          stationName: item.stationName,
+          address: item.address || 'Address Not Available',
+          city: item.city,
+          state: item.state || 'Unknown',
+          phone: item.phone || null,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          distance: dist,
+          googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+          openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
+          petrolPrice: item.petrolPrice,
+          dieselPrice: item.dieselPrice,
+          power95Price: item.power95Price,
+          turboJetPrice: item.turboJetPrice,
+          premiumFuelPrice: item.power95Price,
+          stateOffice: item.stateOffice,
+          divisionalOffice: item.divisionalOffice,
+          salesArea: item.salesArea,
+          stationUrl: item.stationUrl,
+        });
       }
 
       // C. BPCL Merge
       for (const item of allBpcl) {
         const dist = getDistance(item.latitude, item.longitude);
-        if (debouncedSearch || dist === undefined || dist <= radius) {
-          consolidated.push({
-            brand: 'BPCL',
-            fuelType: 'Speed97',
-            stationId: item.roId,
-            stationName: item.stationName,
-            address: item.address || 'Address Not Available',
-            city: item.city,
-            state: item.state || 'Unknown',
-            phone: item.phone || null,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            distance: dist,
-            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
-            openingHours: item.openingHours || null,
-            petrolPrice: item.petrolPrice,
-            dieselPrice: item.dieselPrice,
-            speedPrice: item.speedPrice,
-            premiumFuelPrice: item.speedPrice,
-          });
-        }
+        consolidated.push({
+          brand: 'BPCL',
+          fuelType: 'Speed97',
+          stationId: item.roId,
+          stationName: item.stationName,
+          address: item.address || 'Address Not Available',
+          city: item.city,
+          state: item.state || 'Unknown',
+          phone: item.phone || null,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          distance: dist,
+          googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+          openingHours: item.openingHours || null,
+          petrolPrice: item.petrolPrice,
+          dieselPrice: item.dieselPrice,
+          speedPrice: item.speedPrice,
+          premiumFuelPrice: item.speedPrice,
+        });
       }
 
       // D. Shell Merge
       for (const item of allShell) {
         const dist = getDistance(item.latitude, item.longitude);
-        if (debouncedSearch || dist === undefined || dist <= radius) {
-          consolidated.push({
-            brand: 'Shell',
-            fuelType: 'V-Power',
-            stationId: item.stationId || 'Shell-' + item.stationName,
-            stationName: item.stationName,
-            address: item.address || 'Address Not Available',
-            city: item.city,
-            state: item.state || 'Unknown',
-            phone: item.phone || null,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            distance: dist,
-            googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
-            openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
-            petrolPrice: item.petrolPrice || null,
-            dieselPrice: item.dieselPrice || null,
-            premiumFuelPrice: item.xp95Price || null, // Shell uses cached premium petrol price
-            fuels: item.fuels,
-            amenities: item.amenities,
-          });
-        }
+        consolidated.push({
+          brand: 'Shell',
+          fuelType: 'V-Power',
+          stationId: item.stationId || 'Shell-' + item.stationName,
+          stationName: item.stationName,
+          address: item.address || 'Address Not Available',
+          city: item.city,
+          state: item.state || 'Unknown',
+          phone: item.phone || null,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          distance: dist,
+          googleMapsUrl: item.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`,
+          openingHours: item.openingHours || 'Open 06:00 AM - 11:00 PM',
+          petrolPrice: item.petrolPrice || null,
+          dieselPrice: item.dieselPrice || null,
+          premiumFuelPrice: item.xp95Price || null,
+          fuels: item.fuels,
+          amenities: item.amenities,
+        });
       }
 
       setStations(consolidated);
@@ -248,29 +243,48 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [latitude, longitude, radius, debouncedSearch]);
+  }, [latitude, longitude]);
 
   // Load data immediately on coordinates update
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Filter & Sort station results
+  // Filter & Sort station results (fully client-side & instantaneous!)
   const filteredAndSortedStations = useMemo(() => {
-    // 1. Filter by brand
     let results = stations;
+
+    // 1. Search term filter (in-memory)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      results = results.filter(
+        (s) =>
+          s.stationName.toLowerCase().includes(q) ||
+          s.city.toLowerCase().includes(q) ||
+          s.state.toLowerCase().includes(q) ||
+          s.address.toLowerCase().includes(q) ||
+          (s.stationId && s.stationId.toLowerCase().includes(q))
+      );
+    }
+
+    // 2. Radius filter (in-memory)
+    if (latitude !== null && longitude !== null && radius !== undefined) {
+      results = results.filter((s) => s.distance === undefined || s.distance <= radius);
+    }
+
+    // 3. Filter by brand
     if (selectedBrand !== 'All') {
       results = results.filter((s) => s.brand === selectedBrand);
     }
 
-    // 2. Filter by favorites
+    // 4. Filter by favorites
     if (showFavoritesOnly) {
       results = results.filter((s) =>
         favorites.some((f) => f.id === s.stationId && f.brand === s.brand)
       );
     }
 
-    // 3. Sort
+    // 5. Sort
     return [...results].sort((a, b) => {
       let valA: any = 0;
       let valB: any = 0;
@@ -290,24 +304,43 @@ export default function App() {
       const orderSign = sortOrder === 'desc' ? -1 : 1;
       return valA > valB ? orderSign : -orderSign;
     });
-  }, [stations, selectedBrand, sortBy, sortOrder, showFavoritesOnly, favorites]);
+  }, [stations, search, radius, latitude, longitude, selectedBrand, sortBy, sortOrder, showFavoritesOnly, favorites]);
 
-  // Split unified list back into separate components for layout groups
+  // Sliced lists for rendering (optimizing DOM performance)
+  const ioclRawStations = useMemo(
+    () => filteredAndSortedStations.filter((s) => s.brand === 'IOCL'),
+    [filteredAndSortedStations]
+  );
   const ioclStations = useMemo(
-    () => filteredAndSortedStations.filter((s) => s.brand === 'IOCL').slice(0, limitTo10 ? 10 : undefined),
-    [filteredAndSortedStations, limitTo10]
+    () => ioclRawStations.slice(0, limitTo10 ? 10 : ioclLimit),
+    [ioclRawStations, limitTo10, ioclLimit]
+  );
+
+  const hpclRawStations = useMemo(
+    () => filteredAndSortedStations.filter((s) => s.brand === 'HPCL'),
+    [filteredAndSortedStations]
   );
   const hpclStations = useMemo(
-    () => filteredAndSortedStations.filter((s) => s.brand === 'HPCL').slice(0, limitTo10 ? 10 : undefined),
-    [filteredAndSortedStations, limitTo10]
+    () => hpclRawStations.slice(0, limitTo10 ? 10 : hpclLimit),
+    [hpclRawStations, limitTo10, hpclLimit]
+  );
+
+  const bpclRawStations = useMemo(
+    () => filteredAndSortedStations.filter((s) => s.brand === 'BPCL'),
+    [filteredAndSortedStations]
   );
   const bpclStations = useMemo(
-    () => filteredAndSortedStations.filter((s) => s.brand === 'BPCL').slice(0, limitTo10 ? 10 : undefined),
-    [filteredAndSortedStations, limitTo10]
+    () => bpclRawStations.slice(0, limitTo10 ? 10 : bpclLimit),
+    [bpclRawStations, limitTo10, bpclLimit]
+  );
+
+  const shellRawStations = useMemo(
+    () => filteredAndSortedStations.filter((s) => s.brand === 'Shell'),
+    [filteredAndSortedStations]
   );
   const shellStations = useMemo(
-    () => filteredAndSortedStations.filter((s) => s.brand === 'Shell').slice(0, limitTo10 ? 10 : undefined),
-    [filteredAndSortedStations, limitTo10]
+    () => shellRawStations.slice(0, limitTo10 ? 10 : shellLimit),
+    [shellRawStations, limitTo10, shellLimit]
   );
 
   const handleSelectCity = (c: CityCoords) => {
@@ -429,7 +462,7 @@ export default function App() {
                         IndianOil XP Premium Outlets
                       </h2>
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-1">
-                        {ioclStations.length}
+                        {ioclRawStations.length}
                       </span>
                     </div>
 
@@ -438,18 +471,31 @@ export default function App() {
                         No premium petrol stations found nearby.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {ioclStations.map((st) => (
-                          <StationCard
-                            key={'IOCL-' + st.stationId}
-                            station={st}
-                            isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'IOCL')}
-                            onToggleFavorite={handleToggleFavorite}
-                            userLatitude={latitude}
-                            userLongitude={longitude}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          {ioclStations.map((st) => (
+                            <StationCard
+                              key={'IOCL-' + st.stationId}
+                              station={st}
+                              isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'IOCL')}
+                              onToggleFavorite={handleToggleFavorite}
+                              userLatitude={latitude}
+                              userLongitude={longitude}
+                            />
+                          ))}
+                        </div>
+                        
+                        {!limitTo10 && ioclRawStations.length > ioclLimit && (
+                          <div className="flex justify-center mt-6">
+                            <button
+                              onClick={() => setIoclLimit((prev) => prev + 20)}
+                              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer"
+                            >
+                              Load More (+{ioclRawStations.length - ioclLimit} stations)
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
                 )}
@@ -463,7 +509,7 @@ export default function App() {
                         HPCL Power95 Outlets
                       </h2>
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-1">
-                        {hpclStations.length}
+                        {hpclRawStations.length}
                       </span>
                     </div>
 
@@ -472,18 +518,31 @@ export default function App() {
                         No premium petrol stations found nearby.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {hpclStations.map((st) => (
-                          <StationCard
-                            key={'HPCL-' + st.stationId}
-                            station={st}
-                            isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'HPCL')}
-                            onToggleFavorite={handleToggleFavorite}
-                            userLatitude={latitude}
-                            userLongitude={longitude}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          {hpclStations.map((st) => (
+                            <StationCard
+                              key={'HPCL-' + st.stationId}
+                              station={st}
+                              isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'HPCL')}
+                              onToggleFavorite={handleToggleFavorite}
+                              userLatitude={latitude}
+                              userLongitude={longitude}
+                            />
+                          ))}
+                        </div>
+
+                        {!limitTo10 && hpclRawStations.length > hpclLimit && (
+                          <div className="flex justify-center mt-6">
+                            <button
+                              onClick={() => setHpclLimit((prev) => prev + 20)}
+                              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer"
+                            >
+                              Load More (+{hpclRawStations.length - hpclLimit} stations)
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
                 )}
@@ -497,7 +556,7 @@ export default function App() {
                         BPCL Speed97 Outlets
                       </h2>
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-1">
-                        {bpclStations.length}
+                        {bpclRawStations.length}
                       </span>
                     </div>
 
@@ -506,18 +565,31 @@ export default function App() {
                         No premium petrol stations found nearby.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {bpclStations.map((st) => (
-                          <StationCard
-                            key={'BPCL-' + st.stationId}
-                            station={st}
-                            isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'BPCL')}
-                            onToggleFavorite={handleToggleFavorite}
-                            userLatitude={latitude}
-                            userLongitude={longitude}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          {bpclStations.map((st) => (
+                            <StationCard
+                              key={'BPCL-' + st.stationId}
+                              station={st}
+                              isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'BPCL')}
+                              onToggleFavorite={handleToggleFavorite}
+                              userLatitude={latitude}
+                              userLongitude={longitude}
+                            />
+                          ))}
+                        </div>
+
+                        {!limitTo10 && bpclRawStations.length > bpclLimit && (
+                          <div className="flex justify-center mt-6">
+                            <button
+                              onClick={() => setBpclLimit((prev) => prev + 20)}
+                              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer"
+                            >
+                              Load More (+{bpclRawStations.length - bpclLimit} stations)
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
                 )}
@@ -531,7 +603,7 @@ export default function App() {
                         Shell V-Power Outlets
                       </h2>
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-1">
-                        {shellStations.length}
+                        {shellRawStations.length}
                       </span>
                     </div>
 
@@ -540,18 +612,31 @@ export default function App() {
                         No premium petrol stations found nearby.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {shellStations.map((st) => (
-                          <StationCard
-                            key={'Shell-' + st.stationId}
-                            station={st}
-                            isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'Shell')}
-                            onToggleFavorite={handleToggleFavorite}
-                            userLatitude={latitude}
-                            userLongitude={longitude}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          {shellStations.map((st) => (
+                            <StationCard
+                              key={'Shell-' + st.stationId}
+                              station={st}
+                              isFavorite={favorites.some((f) => f.id === st.stationId && f.brand === 'Shell')}
+                              onToggleFavorite={handleToggleFavorite}
+                              userLatitude={latitude}
+                              userLongitude={longitude}
+                            />
+                          ))}
+                        </div>
+
+                        {!limitTo10 && shellRawStations.length > shellLimit && (
+                          <div className="flex justify-center mt-6">
+                            <button
+                              onClick={() => setShellLimit((prev) => prev + 20)}
+                              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/85 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer"
+                            >
+                              Load More (+{shellRawStations.length - shellLimit} stations)
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
                 )}

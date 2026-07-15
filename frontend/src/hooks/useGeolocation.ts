@@ -52,10 +52,15 @@ export function useGeolocation() {
       navigator.permissions
         .query({ name: 'geolocation' })
         .then((permission) => {
-          setState((prev) => ({
-            ...prev,
-            permissionStatus: permission.state as any,
-          }));
+          // Only update to granted if query reports granted.
+          // Do NOT eagerly set 'denied' from the query to avoid race conditions and privacy shields.
+          if (permission.state === 'granted') {
+            setState((prev) => ({
+              ...prev,
+              permissionStatus: 'granted',
+            }));
+            getCoordinates();
+          }
 
           permission.onchange = () => {
             setState((prev) => ({

@@ -25,10 +25,10 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/50 dark:border-slate-800/80 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/50 dark:border-slate-800/80 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header banner */}
-        <div className="bg-gradient-to-r from-amber-500 to-rose-600 px-6 py-5 flex items-center justify-between text-white">
+        <div className="bg-gradient-to-r from-amber-500 to-rose-600 px-6 py-5 flex items-center justify-between text-white flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 rounded-xl">
               <ShieldAlert size={20} />
@@ -51,7 +51,7 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
         </div>
 
         {/* Instructions Body */}
-        <div className="p-6 flex flex-col gap-5 text-slate-600 dark:text-slate-300 text-xs">
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-5 text-slate-600 dark:text-slate-300 text-xs">
           
           <div className="p-3 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-2xl border border-rose-200/40 dark:border-rose-900/30 font-medium">
             🔒 <span className="font-bold">Browser Security Rule:</span> Websites are blocked from programmatically prompting you for location once it has been set to "Block". You must manually unblock it using one of the quick steps below.
@@ -110,7 +110,7 @@ export const PermissionInstructionsModal: React.FC<PermissionInstructionsModalPr
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200/50 dark:border-slate-800/80 flex justify-between items-center gap-3">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200/50 dark:border-slate-800/80 flex justify-between items-center gap-3 flex-shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 active:scale-95 transition-all cursor-pointer"

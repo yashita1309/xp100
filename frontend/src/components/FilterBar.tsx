@@ -31,7 +31,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   setLimitTo10,
 }) => {
   return (
-    <div className="sticky top-20 z-40 w-full glassmorphism p-5 rounded-3xl shadow-xl shadow-slate-100 dark:shadow-none border border-slate-200/60 dark:border-slate-800/80 flex flex-col gap-4">
+    <div className="static md:sticky md:top-24 z-40 w-full glassmorphism p-5 rounded-3xl shadow-xl shadow-slate-100 dark:shadow-none border border-slate-200/60 dark:border-slate-800/80 flex flex-col gap-4">
       {/* Search and Top Controls Row */}
       <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full">
         {/* Search Input */}
